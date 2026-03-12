@@ -1,0 +1,14 @@
+{
+  "topic": "Testing",
+  "caption": "A quick test of the API",
+  "content": "This is a test post to verify the publishing flow works correctly.",
+  "hashtags": [
+    "test",
+    "api"
+  ],
+  "date": "2026-03-12T14:35:00Z",
+  "title": "Test Post From API",
+  "image_prompt": "",
+  "slug": "test-post-from-api",
+  "reading_time": "1 min read"
+}
