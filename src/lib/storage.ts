@@ -13,11 +13,14 @@ export interface PostData {
   reading_time?: string;
 }
 
-// In Vercel serverless environments, only /tmp is writable
+// On Vercel, the repo files are readable at process.cwd() but only /tmp is writable.
+// We read from BOTH locations and write only to /tmp.
 const isVercel = process.env.VERCEL === '1';
-const postsDirectory = isVercel 
-  ? path.join('/tmp', 'data', 'posts') 
-  : path.join(process.cwd(), 'data', 'posts');
+const bundledPostsDir = path.join(process.cwd(), 'data', 'posts');
+const tmpPostsDir = path.join('/tmp', 'data', 'posts');
+
+// For local dev, read and write from the same place
+const writeDir = isVercel ? tmpPostsDir : bundledPostsDir;
 
 const calculateReadingTime = (content: string): string => {
   const wordsPerMinute = 200;
@@ -33,82 +36,67 @@ const generateSlug = (title: string): string => {
     .replace(/^-+|-+$/g, '');
 };
 
-export const getPosts = (): PostData[] => {
-  if (!fs.existsSync(postsDirectory)) {
-    fs.mkdirSync(postsDirectory, { recursive: true });
-    return [];
-  }
+/**
+ * Read JSON post files from a directory. Returns empty array if dir doesn't exist.
+ */
+const readPostsFromDir = (dir: string): PostData[] => {
+  if (!fs.existsSync(dir)) return [];
 
-  const fileNames = fs.readdirSync(postsDirectory);
-  
-  const posts = fileNames
-    .filter(fileName => fileName.endsWith('.json'))
-    .map(fileName => {
-      const fullPath = path.join(postsDirectory, fileName);
-      const fileContents = fs.readFileSync(fullPath, 'utf8');
+  return fs.readdirSync(dir)
+    .filter(f => f.endsWith('.json'))
+    .map(f => {
       try {
-        const data = JSON.parse(fileContents);
-        if (!data.slug) {
-          // If old files didn't have slug, generate it
-          data.slug = generateSlug(data.title);
-        }
-        if (!data.reading_time) {
-          data.reading_time = calculateReadingTime(data.content || '');
-        }
+        const raw = fs.readFileSync(path.join(dir, f), 'utf8');
+        const data = JSON.parse(raw);
+        if (!data.slug) data.slug = generateSlug(data.title);
+        if (!data.reading_time) data.reading_time = calculateReadingTime(data.content || '');
         return data as PostData;
-      } catch (e) {
-        console.error(`Error parsing ${fileName}:`, e);
+      } catch {
         return null;
       }
     })
-    .filter((post): post is PostData => post !== null)
-    .sort((a, b) => {
-      // Sort newest first
-      return new Date(b.date).getTime() - new Date(a.date).getTime();
-    });
+    .filter((p): p is PostData => p !== null);
+};
 
-  return posts;
+export const getPosts = (): PostData[] => {
+  // Always read from the bundled repo directory
+  const bundled = readPostsFromDir(bundledPostsDir);
+
+  // On Vercel, also read any posts written at runtime to /tmp
+  const runtime = isVercel ? readPostsFromDir(tmpPostsDir) : [];
+
+  // Merge and deduplicate by slug (runtime wins if duplicate)
+  const slugMap = new Map<string, PostData>();
+  for (const p of bundled) slugMap.set(p.slug!, p);
+  for (const p of runtime) slugMap.set(p.slug!, p);
+
+  return Array.from(slugMap.values()).sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
 };
 
 export const getPostBySlug = (slug: string): PostData | null => {
-  try {
-    const posts = getPosts();
-    const post = posts.find(p => p.slug === slug);
-    return post || null;
-  } catch (e) {
-    console.error(`Error reading post ${slug}:`, e);
-    return null;
-  }
+  return getPosts().find(p => p.slug === slug) || null;
 };
 
 export const savePost = (data: PostData): PostData => {
-  if (!fs.existsSync(postsDirectory)) {
-    fs.mkdirSync(postsDirectory, { recursive: true });
+  if (!fs.existsSync(writeDir)) {
+    fs.mkdirSync(writeDir, { recursive: true });
   }
 
   const slug = generateSlug(data.title);
   const reading_time = calculateReadingTime(data.content);
-  
-  const postToSave: PostData = {
-    ...data,
-    slug,
-    reading_time
-  };
 
-  // Requirement: files must be named YYYY-MM-DD.json
-  // If multiple posts on same day, append a hash or just use date strings. The prompt said 2026-03-12.json
-  const dateObj = new Date(data.date);
-  const dateString = dateObj.toISOString().split('T')[0]; // Gets YYYY-MM-DD
-  
-  // Handle potential filename collisions by appending a short ID if it exists
+  const postToSave: PostData = { ...data, slug, reading_time };
+
+  const dateString = new Date(data.date).toISOString().split('T')[0];
   let fileName = `${dateString}.json`;
-  let fullPath = path.join(postsDirectory, fileName);
-  
+  let fullPath = path.join(writeDir, fileName);
+
   if (fs.existsSync(fullPath)) {
-    // File exists, append random string
-    const randomHash = Math.random().toString(36).substring(2, 7);
-    fileName = `${dateString}-${randomHash}.json`;
-    fullPath = path.join(postsDirectory, fileName);
+    const hash = Math.random().toString(36).substring(2, 7);
+    fileName = `${dateString}-${hash}.json`;
+    fullPath = path.join(writeDir, fileName);
   }
 
   fs.writeFileSync(fullPath, JSON.stringify(postToSave, null, 2), 'utf8');
