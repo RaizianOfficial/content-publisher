@@ -3,18 +3,36 @@
 @tailwind utilities;
 
 :root {
+  /* Phase 3 Premium Editorial Theme */
   --background: #ffffff;
-  --foreground: #1a1a1a;
-  --border: #e5e5e5;
-  --accent: #0f172a;
+  --background-secondary: #f7f7f8;
+  --foreground: #111111;
+  --foreground-secondary: #6b7280;
+  --border: #e5e7eb;
+  --border-hover: #d1d5db;
+  /* Deep purple / soft indigo accent */
+  --accent: #4f46e5; 
+  --accent-light: #eef2ff;
+  
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-lg: 0 12px 28px rgba(0,0,0,0.08);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0f172a;
-    --foreground: #f8fafc;
-    --border: #334155;
-    --accent: #ffffff;
+    --background: #09090b;
+    --background-secondary: #121214;
+    --foreground: #fafafa;
+    --foreground-secondary: #a1a1aa;
+    --border: #27272a;
+    --border-hover: #3f3f46;
+    --accent: #818cf8;
+    --accent-light: #1e1b4b;
+    
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
+    --shadow-lg: 0 12px 28px rgba(0,0,0,0.7);
   }
 }
 
@@ -22,15 +40,57 @@ body {
   background-color: var(--background);
   color: var(--foreground);
   transition: background-color 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* Base typography refinements */
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.025em;
+  font-weight: 700;
+}
+
+.prose {
+  color: var(--foreground);
+}
+
+/* 1.7 line height for excellent readability */
 .prose p {
-  line-height: 1.8;
-  margin-bottom: 1.5em;
+  line-height: 1.7;
+  margin-bottom: 1.6em;
+  color: var(--foreground-secondary);
+  font-size: 1.125rem;
 }
 
 .prose h1, .prose h2, .prose h3 {
+  color: var(--foreground);
+  margin-top: 2.2em;
+  margin-bottom: 0.8em;
+  line-height: 1.25;
+}
+
+.prose a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  transition: opacity 0.2s ease;
+}
+
+.prose a:hover {
+  opacity: 0.8;
+}
+
+.prose blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1.5em;
+  color: var(--foreground);
+  font-style: italic;
+  font-size: 1.25rem;
+  background: var(--accent-light);
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  border-radius: 0 8px 8px 0;
   margin-top: 2em;
-  margin-bottom: 0.5em;
-  line-height: 1.2;
+  margin-bottom: 2em;
 }

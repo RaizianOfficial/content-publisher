@@ -13,9 +13,12 @@ export interface PostData {
   reading_time?: string;
 }
 
-const postsDirectory = path.join(process.cwd(), 'data', 'posts');
+// In Vercel serverless environments, only /tmp is writable
+const isVercel = process.env.VERCEL === '1';
+const postsDirectory = isVercel 
+  ? path.join('/tmp', 'data', 'posts') 
+  : path.join(process.cwd(), 'data', 'posts');
 
-// Helper to calculate reading time
 const calculateReadingTime = (content: string): string => {
   const wordsPerMinute = 200;
   const words = content.trim().split(/\s+/).length;
@@ -23,7 +26,6 @@ const calculateReadingTime = (content: string): string => {
   return `${minutes} min read`;
 };
 
-// Helper to generate a slug from title
 const generateSlug = (title: string): string => {
   return title
     .toLowerCase()
@@ -32,7 +34,6 @@ const generateSlug = (title: string): string => {
 };
 
 export const getPosts = (): PostData[] => {
-  // Ensure directory exists
   if (!fs.existsSync(postsDirectory)) {
     fs.mkdirSync(postsDirectory, { recursive: true });
     return [];
@@ -47,9 +48,9 @@ export const getPosts = (): PostData[] => {
       const fileContents = fs.readFileSync(fullPath, 'utf8');
       try {
         const data = JSON.parse(fileContents);
-        // Fallback slug if not present
         if (!data.slug) {
-          data.slug = fileName.replace(/\.json$/, '');
+          // If old files didn't have slug, generate it
+          data.slug = generateSlug(data.title);
         }
         if (!data.reading_time) {
           data.reading_time = calculateReadingTime(data.content || '');
@@ -62,11 +63,8 @@ export const getPosts = (): PostData[] => {
     })
     .filter((post): post is PostData => post !== null)
     .sort((a, b) => {
-      if (a.date < b.date) {
-        return 1;
-      } else {
-        return -1;
-      }
+      // Sort newest first
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
 
   return posts;
@@ -74,16 +72,9 @@ export const getPosts = (): PostData[] => {
 
 export const getPostBySlug = (slug: string): PostData | null => {
   try {
-    const fullPath = path.join(postsDirectory, `${slug}.json`);
-    if (!fs.existsSync(fullPath)) return null;
-    
-    const fileContents = fs.readFileSync(fullPath, 'utf8');
-    const data = JSON.parse(fileContents) as PostData;
-    
-    if (!data.slug) data.slug = slug;
-    if (!data.reading_time) data.reading_time = calculateReadingTime(data.content || '');
-    
-    return data;
+    const posts = getPosts();
+    const post = posts.find(p => p.slug === slug);
+    return post || null;
   } catch (e) {
     console.error(`Error reading post ${slug}:`, e);
     return null;
@@ -91,7 +82,6 @@ export const getPostBySlug = (slug: string): PostData | null => {
 };
 
 export const savePost = (data: PostData): PostData => {
-  // Ensure directory exists
   if (!fs.existsSync(postsDirectory)) {
     fs.mkdirSync(postsDirectory, { recursive: true });
   }
@@ -105,8 +95,22 @@ export const savePost = (data: PostData): PostData => {
     reading_time
   };
 
-  const fullPath = path.join(postsDirectory, `${slug}.json`);
-  fs.writeFileSync(fullPath, JSON.stringify(postToSave, null, 2), 'utf8');
+  // Requirement: files must be named YYYY-MM-DD.json
+  // If multiple posts on same day, append a hash or just use date strings. The prompt said 2026-03-12.json
+  const dateObj = new Date(data.date);
+  const dateString = dateObj.toISOString().split('T')[0]; // Gets YYYY-MM-DD
   
+  // Handle potential filename collisions by appending a short ID if it exists
+  let fileName = `${dateString}.json`;
+  let fullPath = path.join(postsDirectory, fileName);
+  
+  if (fs.existsSync(fullPath)) {
+    // File exists, append random string
+    const randomHash = Math.random().toString(36).substring(2, 7);
+    fileName = `${dateString}-${randomHash}.json`;
+    fullPath = path.join(postsDirectory, fileName);
+  }
+
+  fs.writeFileSync(fullPath, JSON.stringify(postToSave, null, 2), 'utf8');
   return postToSave;
 };

@@ -1,0 +1,13 @@
+{
+  "topic": "Test",
+  "caption": "Test caption",
+  "content": "Test content",
+  "hashtags": [
+    "test"
+  ],
+  "date": "2026-03-03T12:00:00Z",
+  "title": "Test Post 3",
+  "image_prompt": "",
+  "slug": "test-post-3",
+  "reading_time": "1 min read"
+}

@@ -9,13 +9,21 @@ module.exports = {
     extend: {
       colors: {
         background: "var(--background)",
+        "background-secondary": "var(--background-secondary)",
         foreground: "var(--foreground)",
+        "foreground-secondary": "var(--foreground-secondary)",
         border: "var(--border)",
-        accent: "var(--accent)"
+        "border-hover": "var(--border-hover)",
+        accent: "var(--accent)",
+        "accent-light": "var(--accent-light)"
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'sans-serif'],
-        serif: ['var(--font-merriweather)', 'serif'],
+      },
+      boxShadow: {
+        sm: "var(--shadow-sm)",
+        md: "var(--shadow-md)",
+        lg: "var(--shadow-lg)",
       }
     },
   },
